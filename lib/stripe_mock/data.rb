@@ -191,7 +191,8 @@ module StripeMock
         description: nil,
         dispute: nil,
         metadata: {
-        }
+        },
+        transfer_group: nil
       }.merge(params)
     end
 
@@ -596,6 +597,7 @@ module StripeMock
           :has_more => false,
           :url => "/v1/transfers/#{id}/reversals"
         },
+        :transfer_group => nil
       }.merge(params)
     end
 
