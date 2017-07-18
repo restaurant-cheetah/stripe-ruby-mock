@@ -597,7 +597,8 @@ module StripeMock
           :has_more => false,
           :url => "/v1/transfers/#{id}/reversals"
         },
-        :transfer_group => nil
+        :transfer_group => nil,
+        :destination_payment => nil
       }.merge(params)
     end
 
