@@ -30,7 +30,7 @@ module StripeMock
             else
               params[:source] = get_card_or_bank_by_token(params[:source])
             end
-          elsif params[:source][:id]
+          elsif params[:source][:id] && params[:source][:object] != 'account'
             raise Stripe::InvalidRequestError.new("Invalid token id: #{params[:source]}", 'card', http_status: 400)
           end
         elsif params[:customer]

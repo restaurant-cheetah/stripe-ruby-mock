@@ -43,7 +43,7 @@ module StripeMock
 
     attr_reader :accounts, :balance_transactions, :bank_tokens, :charges, :coupons, :customers,
                 :disputes, :events, :invoices, :invoice_items, :orders, :plans, :recipients,
-                :refunds, :transfers, :subscriptions, :country_spec
+                :refunds, :transfers, :subscriptions, :country_spec, :app_id
 
     attr_accessor :error_queue, :debug, :conversion_rate
 
@@ -72,6 +72,8 @@ module StripeMock
       @id_counter = 0
       @balance_transaction_counter = 0
       @conversion_rate = 1.0
+
+      @app_id = 'ca_12345'
 
       # This is basically a cache for ParamValidators
       @base_strategy = TestStrategies::Base.new
