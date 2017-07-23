@@ -215,6 +215,8 @@ shared_examples 'Customer API' do
     customer = Stripe::Customer.retrieve('test_cus_coupon')
     expect(customer.discount).to_not be_nil
     expect(customer.discount.coupon).to_not be_nil
+    expect(customer.discount.customer).to eq customer.id
+    expect(customer.discount.start).to be_within(1).of Time.now.to_i
   end
 
   describe 'repeating coupon with duration limit', live: true do
@@ -266,8 +268,21 @@ shared_examples 'Customer API' do
     expect(customer.id).to eq(original.id)
     expect(customer.email).to eq(original.email)
     expect(customer.default_source).to eq(original.default_source)
+    expect(customer.default_source).not_to be_a(Stripe::Card)
     expect(customer.subscriptions.count).to eq(0)
     expect(customer.subscriptions.data).to be_empty
+  end
+
+  it "can expand default_source" do
+    original = Stripe::Customer.create({
+      email: 'johnny@appleseed.com',
+      source: gen_card_tk
+    })
+    customer = Stripe::Customer.retrieve(
+      id: original.id,
+      expand: ['default_source']
+    )
+    expect(customer.default_source).to be_a(Stripe::Card)
   end
 
   it "cannot retrieve a customer that doesn't exist" do
@@ -391,7 +406,7 @@ shared_examples 'Customer API' do
     customer = customer.delete
     expect(customer.deleted).to eq(true)
   end
-  
+
   it 'works with the update_subscription method' do
     stripe_helper.create_plan(id: 'silver')
     cus   = Stripe::Customer.create(source: gen_card_tk)
@@ -399,7 +414,7 @@ shared_examples 'Customer API' do
       cus.update_subscription(plan: 'silver')
     }.not_to raise_error
   end
-  
+
   it "deletes a stripe customer discount" do
     original = Stripe::Customer.create(id: 'test_customer_update')
 
@@ -408,7 +423,7 @@ shared_examples 'Customer API' do
     original.save
 
     expect(original.discount.coupon).to be_a Stripe::Coupon
-    
+
     original.delete_discount
 
     customer = Stripe::Customer.retrieve("test_customer_update")
