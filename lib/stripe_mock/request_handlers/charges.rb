@@ -42,8 +42,8 @@ module StripeMock
 
         if params[:destination]
           destination_amount = params[:destination][:amount] || params[:amount]
-          transfer_group = params[:transfer_group] || "group_#{id}"
-          transfer = new_transfer(nil, nil, {amount: destination_amount, currency: params[:currency], destination: params[:destination][:account], transfer_group: transfer_group, source_transaction: id}, nil)
+          params[:transfer_group] ||= "group_#{id}"
+          transfer = new_transfer(nil, nil, {amount: destination_amount, currency: params[:currency], destination: params[:destination][:account], transfer_group: params[:transfer_group], source_transaction: id}, nil)
           params[:transfer] = transfer[:id]
         end
 
