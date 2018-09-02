@@ -20,7 +20,9 @@ module StripeMock
       @@handlers.find {|h| method_url =~ h[:route] }
     end
 
+    include StripeMock::RequestHandlers::ExternalAccounts
     include StripeMock::RequestHandlers::Accounts
+    include StripeMock::RequestHandlers::Balance
     include StripeMock::RequestHandlers::BalanceTransactions
     include StripeMock::RequestHandlers::Charges
     include StripeMock::RequestHandlers::Cards
@@ -39,16 +41,18 @@ module StripeMock
     include StripeMock::RequestHandlers::Transfers
     include StripeMock::RequestHandlers::Tokens
     include StripeMock::RequestHandlers::CountrySpec
+    include StripeMock::RequestHandlers::Payouts
+    include StripeMock::RequestHandlers::EphemeralKey
 
-
-    attr_reader :accounts, :balance_transactions, :bank_tokens, :charges, :coupons, :customers,
+    attr_reader :accounts, :balance, :balance_transactions, :bank_tokens, :charges, :coupons, :customers,
                 :disputes, :events, :invoices, :invoice_items, :orders, :plans, :recipients,
-                :refunds, :transfers, :subscriptions, :country_spec, :app_id
+                :refunds, :transfers, :payouts, :subscriptions, :country_spec, :subscriptions_items, :app_id
 
-    attr_accessor :error_queue, :debug, :conversion_rate
+    attr_accessor :error_queue, :debug, :conversion_rate, :account_balance
 
     def initialize
       @accounts = {}
+      @balance = Data.mock_balance
       @balance_transactions = Data.mock_balance_transactions(['txn_05RsQX2eZvKYlo2C0FRTGSSA','txn_15RsQX2eZvKYlo2C0ERTYUIA', 'txn_25RsQX2eZvKYlo2C0ZXCVBNM', 'txn_35RsQX2eZvKYlo2C0QAZXSWE', 'txn_45RsQX2eZvKYlo2C0EDCVFRT', 'txn_55RsQX2eZvKYlo2C0OIKLJUY', 'txn_65RsQX2eZvKYlo2C0ASDFGHJ', 'txn_75RsQX2eZvKYlo2C0EDCXSWQ', 'txn_85RsQX2eZvKYlo2C0UJMCDET', 'txn_95RsQX2eZvKYlo2C0EDFRYUI'])
       @bank_tokens = {}
       @card_tokens = {}
@@ -64,14 +68,18 @@ module StripeMock
       @recipients = {}
       @refunds = {}
       @transfers = {}
+      @payouts = {}
       @subscriptions = {}
+      @subscriptions_items = []
       @country_spec = {}
 
       @debug = false
       @error_queue = ErrorQueue.new
       @id_counter = 0
       @balance_transaction_counter = 0
+      @dispute_counter = 0
       @conversion_rate = 1.0
+      @account_balance = 10000
 
       @app_id = 'ca_12345'
 
@@ -127,6 +135,8 @@ module StripeMock
         case object
           when :balance_transaction
             id = new_balance_transaction('txn', attributes)
+          when :dispute
+            id = new_dispute('dp', attributes)
           else
             raise UnsupportedRequestError.new "Unsupported stripe object `#{object}`"
         end
@@ -136,6 +146,9 @@ module StripeMock
           when :balance_transaction
             btxn = assert_existence :balance_transaction, id, @balance_transactions[id]
             btxn.merge!(attributes)
+          when :dispute
+            dispute = assert_existence :dispute, id, @disputes[id]
+            dispute.merge!(attributes)
           else
             raise UnsupportedRequestError.new "Unsupported stripe object `#{object}`"
         end
@@ -168,6 +181,12 @@ module StripeMock
         params[:amount] = amount * @conversion_rate
       end
       @balance_transactions[id] = Data.mock_balance_transaction(params.merge(id: id))
+      id
+    end
+
+    def new_dispute(prefix, params = {})
+      id = "#{StripeMock.global_id_prefix}#{prefix}_#{@dispute_counter += 1}"
+      @disputes[id] = Data.mock_dispute(params.merge(id: id))
       id
     end
 

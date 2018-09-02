@@ -6,20 +6,39 @@ module StripeMock
         customer[:subscriptions][:data].find{|sub| sub[:id] == sub_id }
       end
 
-      def custom_subscription_params(plan, cus, options = {})
+      def resolve_subscription_changes(subscription, plans, customer, options = {})
+        subscription.merge!(custom_subscription_params(plans, customer, options))
+        subscription[:items][:data] = plans.map do |plan|
+          if options[:items] && options[:items].size == plans.size
+            quantity = options[:items] &&
+              options[:items].values.detect { |item| item[:plan] == plan[:id] }[:quantity] || 1
+            Data.mock_subscription_item({ plan: plan, quantity: quantity })
+          else
+            Data.mock_subscription_item({ plan: plan })
+          end
+        end
+        subscription
+      end
+
+      def custom_subscription_params(plans, cus, options = {})
         verify_trial_end(options[:trial_end]) if options[:trial_end]
 
-        start_time = options[:current_period_start] || Time.now.utc.to_i
-        params = { plan: plan, customer: cus[:id], current_period_start: start_time }
+        plan = plans.first if plans.size == 1
+
+        now = Time.now.utc.to_i
+        created_time = options[:created] || now
+        start_time = options[:current_period_start] || now
+        params = { customer: cus[:id], current_period_start: start_time, created: created_time }
+        params.merge!({ :plan => (plans.size == 1 ? plans.first : nil) })
         params.merge! options.select {|k,v| k =~ /application_fee_percent|quantity|metadata|tax_percent/}
         # TODO: Implement coupon logic
 
-        if ((plan[:trial_period_days]||0) == 0 && options[:trial_end].nil?) || options[:trial_end] == "now"
-          end_time = get_ending_time(start_time, plan)
-          params.merge!({status: 'active', current_period_end: end_time, trial_start: nil, trial_end: nil})
+        if (((plan && plan[:trial_period_days]) || 0) == 0 && options[:trial_end].nil?) || options[:trial_end] == "now"
+          end_time = options[:billing_cycle_anchor] || get_ending_time(start_time, plan)
+          params.merge!({status: 'active', current_period_end: end_time, trial_start: nil, trial_end: nil, billing_cycle_anchor: options[:billing_cycle_anchor]})
         else
           end_time = options[:trial_end] || (Time.now.utc.to_i + plan[:trial_period_days]*86400)
-          params.merge!({status: 'trialing', current_period_end: end_time, trial_start: start_time, trial_end: end_time})
+          params.merge!({status: 'trialing', current_period_end: end_time, trial_start: start_time, trial_end: end_time, billing_cycle_anchor: nil})
         end
 
         params
@@ -28,12 +47,16 @@ module StripeMock
       def add_subscription_to_customer(cus, sub)
         if sub[:trial_end].nil? || sub[:trial_end] == "now"
           id = new_id('ch')
-          charges[id] = Data.mock_charge(:id => id, :customer => cus[:id], :amount => sub[:plan][:amount])
+          charges[id] = Data.mock_charge(
+            :id => id,
+            :customer => cus[:id],
+            :amount => (sub[:plan] ? sub[:plan][:amount] : total_items_amount(sub[:items][:data]))
+          )
         end
 
         if cus[:currency].nil?
-          cus[:currency] = sub[:plan][:currency]
-        elsif cus[:currency] != sub[:plan][:currency]
+          cus[:currency] = sub[:items][:data][0][:plan][:currency]
+        elsif cus[:currency] != sub[:items][:data][0][:plan][:currency]
           raise Stripe::InvalidRequestError.new( "Can't combine currencies on a single customer. This customer has had a subscription, coupon, or invoice item with currency #{cus[:currency]}", 'currency', http_status: 400)
         end
         cus[:subscriptions][:total_count] = (cus[:subscriptions][:total_count] || 0) + 1
@@ -50,6 +73,8 @@ module StripeMock
       # `intervals` is set to 1 when calculating current_period_end from current_period_start & plan
       # `intervals` is set to 2 when calculating Stripe::Invoice.upcoming end from current_period_start & plan
       def get_ending_time(start_time, plan, intervals = 1)
+        return start_time unless plan
+
         case plan[:interval]
         when "week"
           start_time + (604800 * (plan[:interval_count] || 1) * intervals)
@@ -74,6 +99,11 @@ module StripeMock
         end
       end
 
+      def total_items_amount(items)
+        total = 0
+        items.each { |i| total += (i[:quantity] || 1) * i[:plan][:amount] }
+        total
+      end
     end
   end
 end
