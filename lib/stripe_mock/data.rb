@@ -6,98 +6,70 @@ module StripeMock
       currency = params[:currency] || StripeMock.default_currency
       {
         id: id,
-        email: "bob@example.com",
-        statement_descriptor: nil,
-        display_name: "Stripe.com",
-        timezone: "US/Pacific",
-        details_submitted: false,
+        object: 'account',
+        business_profile: {
+          mcc: '5734',
+          name: 'Stripe.com',
+          product_description: nil,
+          support_address: nil,
+          support_email: nil,
+          support_phone: nil,
+          support_url: nil,
+          url: nil
+        },
+        business_type: nil,
         charges_enabled: false,
-        payouts_enabled: false,
-        currencies_supported: [
-          "usd"
-        ],
+        country: 'US',
+        created: 1579554249,
         default_currency: currency,
-        country: "US",
-        object: "account",
-        business_name: "Stripe.com",
-        business_url: nil,
-        support_phone: nil,
-        managed: false,
-        product_description: nil,
-        debit_negative_balances: true,
-        bank_accounts: {
-          object: "list",
-          total_count: 0,
-          has_more: false,
-          url: "/v1/accounts/#{id}/bank_accounts",
-          data: [
-
-          ]
-        },
-        verification: {
-          fields_needed: [],
-          due_by: nil,
-          contacted: false
-        },
-        transfer_schedule: {
-          delay_days: 7,
-          interval: "daily"
-        },
-        tos_acceptance: {
-          ip: nil,
-          date: nil,
-          user_agent: nil
-        },
+        details_submitted: false,
+        email: 'bob@example.com',
         external_accounts: {
-            object: "list",
-            data: [
-
-            ],
-            has_more: false,
-            total_count: 0,
-            url: "/v1/accounts/#{id}/external_accounts"
+          object: 'list',
+          data: [],
+          has_more: false,
+          total_count: 0,
+          url: "/v1/accounts/#{id}/external_accounts"
         },
-        legal_entity: {
-          type: nil,
-          business_name: nil,
-          address: {
-            line1: nil,
-            line2: nil,
-            city: nil,
-            state: nil,
-            postal_code: nil,
-            country: "US"
+        metadata: {},
+        payouts_enabled: false,
+        settings: {
+          branding: {
+            icon: nil,
+            logo: nil,
+            primary_color: nil
           },
-          first_name: nil,
-          last_name: nil,
-          personal_address: {
-            line1: nil,
-            line2: nil,
-            city: nil,
-            state: nil,
-            postal_code: nil,
-            country: nil
+          card_payments: {
+            decline_on: {
+              avs_failure: false,
+              cvc_failure: false
+            },
+            statement_descriptor_prefix: nil
           },
-          dob: {
-            day: nil,
-            month: nil,
-            year: nil
+          dashboard: {
+            display_name: nil,
+            timezone: 'Etc/UTC'
           },
-          additional_owners: nil,
-          verification: {
-            status: "unverified",
-            document: nil,
-            details: nil
+          payments: {
+            statement_descriptor: '',
+            statement_descriptor_kana: nil,
+            statement_descriptor_kanji: nil
+          },
+          payouts: {
+            debit_negative_balances: false,
+            schedule: {
+              delay_days: 2,
+              interval: 'daily'
+            },
+            statement_descriptor: nil
           }
         },
-        decline_charge_on: {
-          cvc_failure: false,
-          avs_failure: false
+        tos_acceptance: {
+          date: nil,
+          ip: nil,
+          user_agent: nil
         },
-        keys: {
-          secret: "sk_test_AmJhMTLPtY9JL4c6EG0",
-          publishable: "pk_test_2rSaMTLPtY9JL449dsf"
-        }
+        type: 'custom'
       }.merge(params)
     end
 

@@ -15,6 +15,13 @@ module StripeMock
       def new_account(route, method_url, params, headers)
         params[:id] ||= new_id('acct')
         route =~ method_url
+        handle_values(params)
+        params.merge!(
+          capabilities_data(
+            params.delete(:requested_capabilities),
+            params
+          )
+        )
         accounts[params[:id]] ||= Data.mock_account(params)
       end
 
@@ -28,7 +35,11 @@ module StripeMock
       def update_account(route, method_url, params, headers)
         route =~ method_url
         account = assert_existence :account, $1, accounts[$1]
-        account.merge!(params)
+        handle_values(params)
+        if requested_capabilities = params.delete(:requested_capabilities)
+          account.deep_merge!(capabilities_data(requested_capabilities, params))
+        end
+        account.deep_merge!(params)
         if blank_value?(params[:tos_acceptance], :date)
           raise Stripe::InvalidRequestError.new("Invalid integer: ", "tos_acceptance[date]", http_status: 400)
         elsif params[:tos_acceptance] && params[:tos_acceptance][:date]
@@ -49,6 +60,23 @@ module StripeMock
       end
 
       private
+
+      def handle_values(params)
+        if params[:individual].present?
+          if params[:individual][:id_number].present?
+            params[:individual][:id_number_provided] = params[:individual][:id_number].present?
+          end
+          if params[:individual][:ssn_last_4]
+            params[:individual][:ssn_last_4_provided] = params[:individual][:ssn_last_4].present?
+          end
+        end
+
+        if params[:company].present?
+          if params[:company][:tax_id]
+            params[:company][:tax_id_provided] = params[:company][:tax_id].present?
+          end
+        end
+      end
 
       def init_account
         if accounts == {}
@@ -80,6 +108,43 @@ module StripeMock
           "tos_acceptance[date]", 
           http_status: 400
         )
+      end
+
+      def missing_transfers_requirements(data)
+        items = []
+        items << 'business_profile.url' if data.dig(:business_profile, :url).blank?
+        items << 'business_type' if data[:business_type].blank?
+        items << 'external_account' if data[:external_account].blank?
+        items << 'tos_acceptance.date' if data.dig(:tos_acceptance, :date).blank?
+        items << 'tos_acceptance.ip' if data.dig(:tos_acceptance, :ip).blank?
+      end
+
+      def collect_capabilities(requested_capabilities, data)
+        items = {}
+
+        if requested_capabilities.include?('transfers')
+          items[:transfers] = {}
+          items[:transfers][:requirements] = missing_transfers_requirements(data)
+        end
+
+        items
+      end
+
+      def capabilities_data(requested_capabilities, data)
+        capabilities = collect_capabilities(requested_capabilities, data)
+        requirements = capabilities.values.flatten.uniq
+
+        {
+          capabilities: capabilities.map do |key, values|
+            [key, values.present? ? 'inactive' : 'active']
+          end.to_h,
+          requirements: {
+            current_deadline: nil, currently_due: requirements,
+            disabled_reason: 'requirements.past_due',
+            eventually_due: requirements, past_due: requirements,
+            pending_verification: []
+          }
+        }
       end
     end
   end
