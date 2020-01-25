@@ -62,6 +62,13 @@ module StripeMock
       private
 
       def handle_values(params)
+        if params[:individual].present? && params[:company].present?
+          raise Stripe::InvalidRequestError.new(
+            'You cannot provide both `company` and `individual` parameters. Only provide them accordingly with the `business_type` on the account',
+            'individual',
+            http_status: 400
+          )
+        end
         if params[:individual].present?
           if params[:individual][:id_number].present?
             params[:individual][:id_number_provided] = params[:individual][:id_number].present?
